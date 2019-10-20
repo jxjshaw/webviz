@@ -1,0 +1,83 @@
+import CommandDemo from './jsx/api/Command.js';
+
+# Command
+
+Command is the base class for all regl-based drawing commands. Subclasses should override getDrawProps and (and optionally getHitmapProps). Note: getHitmapProps is not implemented in this base class.
+
+| Name                        | optional | type                                                                   | Default | Description                                                                                         |
+| --------------------------- | -------- | ---------------------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------- |
+| `layerIndex`                | yes      | `number`                                                               |         | defines the draw order of each command, e.g. -1 will put the shape in lower layer                   |
+| `hitmapProps`               | yes      | `T & ({ colors: Vec4[] } | { color: Vec4 })`                           |         | hitmap props built on top of children prop with additional `colors` or `color` field                |
+| `getObjectFromHitmapId`     | yes      | `(objectId: number, hitmapProps: HitmapProps<T>[]) => ?HitmapProps<T>` |         | find the `hitmapProp` from the `hitmapProps` based on the `objectId` generated from the mouse event |
+| `getHitmapId` (deprecating) | yes      | `(T) => ?number`                                                       |         | map the marker object to a `hitmapId`                                                               |
+
+Sample usage:
+
+```js
+import Worldview, { withPose, Command } from "regl-worldview";
+
+// define our regl command
+const reglTriangle = (regl) => ({
+  vert: `
+    precision mediump float;
+    attribute vec2 position;
+    void main () {
+      gl_Position = vec4(position, 0, 1);
+    }
+  `,
+  frag: `
+    precision mediump float;
+    uniform vec4 color;
+    void main () {
+      gl_FragColor = color;
+  }`,
+  attributes: {
+    position: regl.prop("points"),
+  },
+  uniforms: {
+    color: regl.prop("color"),
+  },
+  count: regl.prop("points.length"),
+});
+
+// define a Triangle React component to render with our regl command
+function Triangle({ color }) {
+  const drawProps = {
+    color,
+    points: [[-1, 0], [0, -1], [1, 1]],
+  };
+  return <Command reglCommand={reglTriangle} drawProps={drawProps} />;
+}
+
+// pass our Triangle component to worldview
+function CommandDemo() {
+  return (
+    <div style={{ height: 500 }}>
+      <Worldview>
+        <Triangle color={[0, 0, 1, 1]} />
+      </Worldview>
+    </div>
+  );
+}
+```
+
+<CommandDemo />
+
+## makeCommand
+
+When you have children as the drawProps input, it's useful to simply call makeCommand
+which creates a regl component automatically based on the regl command supplied. It also handles basic hitmap
+interactions. You'll want to return a `<Command />` component directly from render if the React children is not the drawProps input or if
+additional data processing is needed to generate the drawProps/hitmapProps.
+
+Sample usage:
+
+```js
+const Cubes = makeCommand("Cubes", rawReglCommand);
+
+// example for supporting hitmap, for details check the MouseEvents documentation
+const Cubes = makeCommand("Cubes", rawReglCommand, {
+  getHitmapProps: () => {...},
+  getObjectFromHitmapId:  () => {...},
+});
+```
